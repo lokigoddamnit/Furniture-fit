@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Furniture Fit Web App</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #canvas-container { position: relative; display: inline-block; }
+        #floor-plan { width: 800px; height: 600px; border: 1px solid #000; }
+        .furniture { position: absolute; background: blue; color: white; padding: 5px; cursor: grab; }
+    </style>
+</head>
+<body>
+    <h1>Furniture Fit Web App</h1>
+    <input type="file" id="upload-image" accept="image/*">
+    <button onclick="saveFurniture()">Save Layout</button>
+    <button onclick="loadFurniture()">Load Layout</button>
+    <div id="canvas-container">
+        <img id="floor-plan" src="" alt="Floor Plan" />
+    </div>
+    <script>
+        document.getElementById('upload-image').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('floor-plan').src = data.file_path;
+                })
+                .catch(error => console.error('Error uploading image:', error));
+        });
+
+        function saveFurniture() {
+            const furnitureData = [];
+            document.querySelectorAll('.furniture').forEach(el => {
+                furnitureData.push({
+                    id: el.id,
+                    x: el.offsetLeft,
+                    y: el.offsetTop,
+                    width: el.offsetWidth,
+                    height: el.offsetHeight
+                });
+            });
+            fetch('/save_furniture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ furniture: furnitureData })
+            }).then(response => response.json())
+              .then(data => alert(data.message));
+        }
+
+        function loadFurniture() {
+            fetch('/load_furniture')
+                .then(response => response.json())
+                .then(data => {
+                    data.furniture.forEach(f => {
+                        addFurniture(f.id, f.x, f.y, f.width, f.height);
+                    });
+                });
+        }
+
+        function addFurniture(id, x, y, width, height) {
+            const div = document.createElement('div');
+            div.id = id || `furniture-${Date.now()}`;
+            div.className = 'furniture';
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+            div.style.width = `${width}px`;
+            div.style.height = `${height}px`;
+            div.innerText = 'Furniture';
+            document.getElementById('canvas-container').appendChild(div);
+            makeDraggable(div);
+        }
+
+        function makeDraggable(element) {
+            let offsetX, offsetY;
+            element.onmousedown = function(event) {
+                offsetX = event.clientX - element.offsetLeft;
+                offsetY = event.clientY - element.offsetTop;
+                document.onmousemove = function(e) {
+                    element.style.left = `${e.clientX - offsetX}px`;
+                    element.style.top = `${e.clientY - offsetY}px`;
+                };
+                document.onmouseup = function() {
+                    document.onmousemove = null;
+                    document.onmouseup = null;
+                };
+            };
+        }
+    </script>
+</body>
+</html>
